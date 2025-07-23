@@ -1,4 +1,4 @@
-{ name, domain, ssl ? false, extraNginxConfig ? null, sshKeys ? null, phpPackage, extraPackages ? [], queue ? false, queueArgs ? "", generateSshKey ? true, poolSettings ? {
+{ name, phpPackage, domains ? [], ssl ? false, extraNginxConfig ? null, sshKeys ? null, extraPackages ? [], queue ? false, queueArgs ? "", generateSshKey ? true, poolSettings ? {
     "pm" = "dynamic";
     "pm.max_children" = 8;
     "pm.start_servers" = 2;
@@ -28,6 +28,7 @@ in {
   environment.etc."laravel-${name}-bashrc".text = ''
     # Laravel site welcome message
     echo "Welcome to ${name} Laravel site!"
+    echo "Domains: ${lib.concatStringsSep ", " domains}"
     echo "User home: /home/${mkUsername name}"
     echo "Site: /srv/${name}"
     echo "Restart php-fpm: sudo systemctl reload phpfpm-${name}"
@@ -101,7 +102,9 @@ in {
   };
 
   # Nginx virtual host configuration
-  services.nginx.virtualHosts.${domain} = {
+  # Note: these assignments within modules do NOT override the existing value that
+  # virtualHosts may have. Instead, all vhost configurations get merged into one.
+  services.nginx.virtualHosts = lib.genAttrs domains (domain: {
     enableACME = ssl;
     forceSSL = ssl;
     root = "/srv/${name}/public";
@@ -141,7 +144,7 @@ in {
         deny all;
       '';
     };
-  };
+  });
 
   # PHP-FPM pool configuration
   services.phpfpm.pools.${name} = {

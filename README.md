@@ -72,10 +72,10 @@ Import the module in your system flake and invoke it with these parameters:
 ```nix
 (laravelSite {
   name = "mysite";
-  domain = "mysite.com";
+  domains = [ "mysite.com" ];
   phpPackage = pkgs.php84;
 
-  ssl = true; # optional, defaults to false
+  ssl = true; # optional, defaults to false, affects *ALL* domains
   extraNginxConfig = "nginx configuration string"; # optional
   sshKeys = [ "array" "of" "public" "ssh" "keys" ]; # optional
   extraPackages = [ pkgs.nodejs_24 ]; # optional
@@ -111,7 +111,7 @@ to false).
 
 Also, if you're using `ssl` you should put this line into your system config:
 ```nix
-security.acme.email = "your@email.com";
+security.acme.defaults.email = "your@email.com";
 ```
 
 A full system config can look something like this (excluding any additional configuration
@@ -134,7 +134,10 @@ you may want to make):
         inherit system;
 
         modules = [
-          { nix.nixPath = [ "nixpkgs=${inputs.nixpkgs}" ]; }
+          {
+            nix.nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
+            security.acme.defaults.email = "your@email.com";
+          }
           ./configuration.nix
 
           # your (laravelSite { ... }) calls here
