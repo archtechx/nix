@@ -18,11 +18,11 @@
 let
   mkUsername = siteName: "laravel-${siteName}";
 in {
-  # Ensure nginx is enabled
   services.nginx.enable = true;
-
-  # Setup ACME if SSL is enabled
   security.acme.acceptTerms = lib.mkIf ssl true;
+
+  # This doesn't override the array, only merges 80 and potentially 443 into it
+  networking.firewall.allowedTCPPorts = [ 80 ] ++ lib.optionals ssl [ 443 ];
 
   # Create welcome message for user
   environment.etc."laravel-${name}-bashrc".text = ''
@@ -33,6 +33,7 @@ in {
     echo "Site: /srv/${name}"
     echo "Restart php-fpm: sudo systemctl reload phpfpm-${name}"
     ${lib.optionalString queue ''echo "Restart queue: php artisan queue:restart"''}
+    ${lib.optionalString queue ''echo "Queue status: sudo systemctl status laravel-queue-${name}"''}
     ${lib.optionalString generateSshKey ''echo "SSH public key: cat ~/.ssh/id_ed25519.pub"''}
     echo "---"
   '';
@@ -45,7 +46,6 @@ in {
     "C /home/${mkUsername name}/.bashrc 0644 ${mkUsername name} ${mkUsername name} - /etc/laravel-${name}-bashrc"
   ];
 
-  # Laravel cron job for scheduler
   services.cron.systemCronJobs = [
     "* * * * * ${mkUsername name} cd /srv/${name} && ${phpPackage}/bin/php artisan schedule:run > /dev/null 2>&1"
   ];
@@ -87,7 +87,7 @@ in {
       if [[ ! -f "$KEY_FILE" ]]; then
         echo "Generating SSH key for ${mkUsername name}"
         mkdir -p "$SSH_DIR"
-        ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f "$KEY_FILE" -N "" -C "${mkUsername name}@$(hostname)"
+        ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f "$KEY_FILE" -N "" -C "${mkUsername name}"
         chown -R ${mkUsername name}:${mkUsername name} "$SSH_DIR"
         chmod 700 "$SSH_DIR"
         chmod 600 "$KEY_FILE"
@@ -173,7 +173,7 @@ in {
   # Add site group to nginx service
   systemd.services.nginx.serviceConfig.SupplementaryGroups = [ (mkUsername name) ];
 
-  # Sudo rule for reloading PHP-FPM
+  # Sudo rules for service management
   security.sudo.extraRules = [{
     users = [ (mkUsername name) ];
     commands = [
@@ -183,6 +183,15 @@ in {
       }
       {
         command = "/run/current-system/sw/bin/systemctl reload phpfpm-${name}.service";
+        options = [ "NOPASSWD" ];
+      }
+    ] ++ lib.optionals queue [
+      {
+        command = "/run/current-system/sw/bin/systemctl status laravel-queue-${name}";
+        options = [ "NOPASSWD" ];
+      }
+      {
+        command = "/run/current-system/sw/bin/systemctl status laravel-queue-${name}.service";
         options = [ "NOPASSWD" ];
       }
     ];
