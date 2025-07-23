@@ -83,9 +83,9 @@ Import the module in your system flake and invoke it with these parameters:
   queueArgs = "--tries=3"; # optional, default empty
   generateSshKey = false; # optional, defaults to true
   poolSettings = { # optional
-      "pm.max_children" = 12;
-      "php_admin_value[opcache_memory_consumption]" = "512";
-      "php_admin_flag[opcache.validate_timestamps]" = true;
+    "pm.max_children" = 12;
+    "php_admin_value[opcache_memory_consumption]" = "512";
+    "php_admin_flag[opcache.validate_timestamps]" = true;
   };
 })
 ```
