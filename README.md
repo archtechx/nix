@@ -160,3 +160,75 @@ nginx, php-fpm, cron, and optionally a queue worker systemd service. We do inclu
 with some echos to quickly remind you of the filesystem structure and available commands.
 
 Simply `scp laravel.nix root@<your server ip>:/etc/nixos/` and start writing config as above.
+
+### www redirects
+
+The module doesn't handle www redirects automatically. This may be added in the future.
+
+At this time, I'd recommend handling basic redirects like that on Cloudflare.
+
+### Using real_ip with Cloudflare
+
+If you use Cloudflare, your access log (`/var/log/nginx/access.log`) will show Cloudflare IPs
+instead of the actual remote IPs. This also affects what IPs are passed to php-fpm and therefore
+Laravel. If you don't care about the access log, you can just make a simple helper like this in
+PHP:
+
+```php
+<?php
+function client_ip(): string
+{
+    if ($ipv6 = request()->header('CF-Connecting-IPv6')) {
+        return $ipv6;
+    }
+
+    return request()->hasHeader('CF-Connecting-IP')
+        ? request()->header('CF-Connecting-IP')
+        : request()->ip();
+}
+```
+
+However a more proper solution is to use the `real_ip` module in common nginx config. To do that,
+we can follow the [guide from the NixOS wiki
+](https://nixos.wiki/wiki/Nginx#Using_realIP_when_behind_CloudFlare_or_other_CDN).
+
+```nix
+# New module in your modules array
+{
+  services.nginx.commonHttpConfig =
+    let
+      realIpsFromList = lib.strings.concatMapStringsSep "\n" (x: "set_real_ip_from  ${x};");
+      fileToList = x: lib.strings.splitString "\n" (builtins.readFile x);
+      cfipv4 = fileToList (pkgs.fetchurl {
+        url = "https://www.cloudflare.com/ips-v4";
+        sha256 = "0ywy9sg7spafi3gm9q5wb59lbiq0swvf0q3iazl0maq1pj1nsb7h";
+      });
+      cfipv6 = fileToList (pkgs.fetchurl {
+        url = "https://www.cloudflare.com/ips-v6";
+        sha256 = "1ad09hijignj6zlqvdjxv7rjj8567z357zfavv201b9vx3ikk7cy";
+      });
+    in
+    ''
+      ${realIpsFromList cfipv4}
+      ${realIpsFromList cfipv6}
+      real_ip_header CF-Connecting-IP;
+    '';
+}
+```
+
+To make `lib` accessible, also update:
+```diff
+ nixosConfigurations = let
+   system = "aarch64-linux";
+   pkgs = nixpkgs.legacyPackages.${system};
++  lib = pkgs.lib;
+   laravelSite = import ./laravel.nix;
+ in {
+```
+
+To check the up-to-date hashes, you can use:
+
+```sh
+curl -s https://www.cloudflare.com/ips-v4 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
+curl -s https://www.cloudflare.com/ips-v6 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
+```
