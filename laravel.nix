@@ -1,4 +1,4 @@
-{ name, phpPackage, domains ? [], ssl ? false, extraNginxConfig ? null, sshKeys ? null, extraPackages ? [], queue ? false, queueArgs ? "", generateSshKey ? true, poolSettings ? {
+{ name, phpPackage, domains ? [], ssl ? false, cloudflareOnly ? false, extraNginxConfig ? null, sshKeys ? null, extraPackages ? [], queue ? false, queueArgs ? "", generateSshKey ? true, poolSettings ? {
     "pm" = "dynamic";
     "pm.max_children" = 8;
     "pm.start_servers" = 2;
@@ -115,6 +115,13 @@ in {
       charset utf-8;
       index index.php;
       error_page 404 /index.php;
+      ${lib.optionalString cloudflareOnly ''
+      ssl_verify_client on;
+      ssl_client_certificate ${pkgs.fetchurl {
+        url = "https://developers.cloudflare.com/ssl/static/authenticated_origin_pull_ca.pem";
+        sha256 = "0hxqszqfzsbmgksfm6k0gp0hsx9k1gqx24gakxqv0391wl6fsky1";
+      }};
+      ''}
       ${lib.optionalString (extraNginxConfig != null) extraNginxConfig}
     '';
 

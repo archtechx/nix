@@ -167,6 +167,48 @@ The module doesn't handle www redirects automatically. This may be added in the 
 
 At this time, I'd recommend handling basic redirects like that on Cloudflare.
 
+### Authenticated Origin Pulls (AOP)
+
+To make your sites reachable ONLY using Cloudflare, you can use [authenticated origin
+pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/).
+
+AOP basically ensures that any SSL traffic is using Cloudflare's "client certificate". With
+all non-HTTPS traffic being presumably force-redirected to HTTPS (`ssl = true;`).
+
+This means that if someone discovers your server's IP, they can send requests bypassing
+Cloudflare (and all the settings you may have there), but they will go nowhere. Nginx will
+see they don't have the client certificate and simply return a 400 error ("No required SSL
+certificate was sent"). The requests will never reach your Laravel application.
+
+There are many ways this can be configured. Some people prefer using their own client certificates
+but Cloudflare lets you use a default global one. That means less config and unless you have some
+very special needs, it will work perfectly fine for this purpose.
+
+To enable AOP on the server, simply set:
+```nix
+cloudflareOnly = true;
+```
+
+in the site config. This will automatically add:
+```nginx
+ssl_verify_client on;
+ssl_client_certificate <path to Cloudflare's default cert>;
+```
+
+Then just enable AOP in the `SSL/TLS -> Origin Server` setting of your CF zone.
+
+> The only caveat with using AOP is that you will not be able to access your app directly
+> *even from the same server* -- HTTP requests will be redirected to HTTPS and HTTPS will
+> fail due to a missing certificate. **But this isn't generally an issue in practice** since
+> the server config we use doesn't use any special hosts records that'd try to bypass CF.
+> So running `curl https://your-app.com` on the server will work without issues. The only
+> thing that will NOT work is:
+> ```sh
+> curl --resolve your-app.com:443:127.0.0.1 https://your-app.com/
+> curl --connect-to your-app.com:443:127.0.0.1:443 https://your-app.com/
+> ```
+> And any equivalents.
+
 ### Using real_ip with Cloudflare
 
 If you use Cloudflare, your access log (`/var/log/nginx/access.log`) will show Cloudflare IPs
@@ -189,8 +231,8 @@ function client_ip(): string
 ```
 
 However a more proper solution is to use the `real_ip` module in common nginx config. To do that,
-we can follow the [guide from the NixOS wiki
-](https://nixos.wiki/wiki/Nginx#Using_realIP_when_behind_CloudFlare_or_other_CDN).
+we can follow the [guide from the NixOS
+wiki](https://nixos.wiki/wiki/Nginx#Using_realIP_when_behind_CloudFlare_or_other_CDN).
 
 ```nix
 # New module in your modules array
