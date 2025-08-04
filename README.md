@@ -82,11 +82,15 @@ Import the module in your system flake and invoke it with these parameters:
   queue = true; # start a queue worker - defaults to false, optional
   queueArgs = "--tries=3"; # optional, default empty
   generateSshKey = false; # optional, defaults to true
-  poolSettings = { # optional
+  poolSettings = { # optional - overrides all of our defaults
     "pm.max_children" = 12;
     "php_admin_value[opcache_memory_consumption]" = "512";
     "php_admin_flag[opcache.validate_timestamps]" = true;
   };
+  # alternatively:
+  extraPoolSettings = { # merged with poolSettings, doesn't override our defaults
+    "pm.max_children" = 12;
+  }
 })
 ```
 
@@ -192,14 +196,14 @@ cloudflareOnly = true;
 in the site config. This will automatically add:
 ```nginx
 ssl_verify_client on;
-ssl_client_certificate <path to Cloudflare's default cert>;
+ssl_client_certificate "path to Cloudflare's default cert";
 ```
 
 Then just enable AOP in the `SSL/TLS -> Origin Server` setting of your CF zone.
 
 > The only caveat with using AOP is that you will not be able to access your app directly
 > *even from the same server* -- HTTP requests will be redirected to HTTPS and HTTPS will
-> fail due to a missing certificate. **But this isn't generally an issue in practice** since
+> fail due to a missing certificate. **But this is generally not an issue in practice** since
 > the server config we use doesn't use any special hosts records that'd try to bypass CF.
 > So running `curl https://your-app.com` on the server will work without issues. The only
 > thing that will NOT work is:
@@ -273,4 +277,29 @@ To check the up-to-date hashes, you can use:
 ```sh
 curl -s https://www.cloudflare.com/ips-v4 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
 curl -s https://www.cloudflare.com/ips-v6 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
+```
+
+## Maintenance
+
+It's a good idea to have /etc/nixos tracked in version control so you can easily revert the config including
+the lockfile, not just system state.
+
+The only thing in your lockfile should be `nixpkgs` unless you add more things to your system config.
+
+After rebuilding the system several times, you will have some past generations and unused files in the Nix
+store that can be cleaned up.
+
+List past generations with:
+```sh
+sudo nix-env --list-generations --profile /nix/var/nix/profiles/system
+```
+
+Delete old ones:
+```sh
+sudo nix-env --delete-generations old --profile /nix/var/nix/profiles/system
+```
+
+Then clean garbage:
+```sh
+sudo nix-collect-garbage -d
 ```

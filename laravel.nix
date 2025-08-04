@@ -1,18 +1,33 @@
-{ name, phpPackage, domains ? [], ssl ? false, cloudflareOnly ? false, extraNginxConfig ? null, sshKeys ? null, extraPackages ? [], queue ? false, queueArgs ? "", generateSshKey ? true, poolSettings ? {
-    "pm" = "dynamic";
-    "pm.max_children" = 8;
-    "pm.start_servers" = 2;
-    "pm.min_spare_servers" = 1;
-    "pm.max_spare_servers" = 3;
-    "pm.max_requests" = 200;
+{
+  name, # Name of the site, the username and /srv/{name} will be based on this
+  phpPackage, # e.g. pkgs.php84
+  domains ? [], # e.g. [ "example.com" "acme.com" ]
+  ssl ? false, # Should SSL be used
+  cloudflareOnly ? false, # Should CF Authenticated Origin Pulls be used
+  extraNginxConfig ? null, # Extra nginx config string
+  sshKeys ? null, # SSH public keys used to log into the site's user for deployments
+  extraPackages ? [], # Any extra packages the user should have in $PATH
+  queue ? false, # Should a queue worker systemd service be created
+  queueArgs ? "", # Extra args for the queue worker (e.g. "--tries=2")
+  generateSshKey ? true, # Generate an SSH key for the user (used for GH deploy keys)
+  poolSettings ? { # PHP-FPM pool settings. Changing this will override all of these defaults
+      "pm" = "dynamic";
+      "pm.max_children" = 8;
+      "pm.start_servers" = 2;
+      "pm.min_spare_servers" = 1;
+      "pm.max_spare_servers" = 3;
+      "pm.max_requests" = 200;
 
-    "php_admin_flag[opcache.enable]" = true;
-    "php_admin_value[opcache.memory_consumption]" = "256";
-    "php_admin_value[opcache.max_accelerated_files]" = "10000";
-    "php_admin_value[opcache.revalidate_freq]" = "0";
-    "php_admin_flag[opcache.validate_timestamps]" = false;
-    "php_admin_flag[opcache.save_comments]" = true;
-}, ... }:
+      "php_admin_flag[opcache.enable]" = true;
+      "php_admin_value[opcache.memory_consumption]" = "256";
+      "php_admin_value[opcache.max_accelerated_files]" = "10000";
+      "php_admin_value[opcache.revalidate_freq]" = "0";
+      "php_admin_flag[opcache.validate_timestamps]" = false;
+      "php_admin_flag[opcache.save_comments]" = true;
+  },
+  extraPoolSettings ? {}, # PHP-FPM pool settings merged into poolSettings. Doesn't override defaults
+  ...
+}:
 
 { config, lib, pkgs, ... }:
 let
@@ -157,7 +172,7 @@ in {
   services.phpfpm.pools.${name} = {
     user = mkUsername name;
     phpPackage = phpPackage;
-    settings = poolSettings // {
+    settings = poolSettings // extraPoolSettings // {
       "listen.owner" = config.services.nginx.user;
     };
   };
