@@ -222,6 +222,7 @@ PHP:
 
 ```php
 <?php
+
 function client_ip(): string
 {
     if ($ipv6 = request()->header('CF-Connecting-IPv6')) {
@@ -281,8 +282,8 @@ curl -s https://www.cloudflare.com/ips-v6 | sha256 | xargs nix hash convert --ha
 
 ## Maintenance
 
-It's a good idea to have /etc/nixos tracked in version control so you can easily revert the config including
-the lockfile, not just system state.
+It's a good idea to have `/etc/nixos` tracked in version control so you can easily revert the config
+including the lockfile, not just system state.
 
 The only thing in your lockfile should be `nixpkgs` unless you add more things to your system config.
 
