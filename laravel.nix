@@ -57,8 +57,8 @@ in {
   systemd.tmpfiles.rules = [
     "d /srv 0755 root root - -"
     "d /home 0755 root root - -"
-    "d /srv/${name} 0755 ${mkUsername name} ${mkUsername name} - -"
-    "C /home/${mkUsername name}/.bashrc 0644 ${mkUsername name} ${mkUsername name} - /etc/laravel-${name}-bashrc"
+    "d /srv/${name} 0750 ${mkUsername name} ${mkUsername name} - -"
+    "C /home/${mkUsername name}/.bashrc 0640 ${mkUsername name} ${mkUsername name} - /etc/laravel-${name}-bashrc"
   ];
 
   services.cron.systemCronJobs = [
@@ -106,7 +106,7 @@ in {
         chown -R ${mkUsername name}:${mkUsername name} "$SSH_DIR"
         chmod 700 "$SSH_DIR"
         chmod 600 "$KEY_FILE"
-        chmod 644 "$KEY_FILE.pub"
+        chmod 640 "$KEY_FILE.pub"
         echo "SSH key generated: $KEY_FILE.pub"
         echo "Public key for deploy key:"
         cat "$KEY_FILE.pub"
