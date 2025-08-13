@@ -55,8 +55,8 @@ in {
 
   # Ensure directories exist with proper permissions
   systemd.tmpfiles.rules = [
-    "d /srv 0755 root root - -"
-    "d /home 0755 root root - -"
+    "d /srv 0751 root root - -"
+    "d /home 0751 root root - -"
     "d /srv/${name} 0750 ${mkUsername name} ${mkUsername name} - -"
     "C /home/${mkUsername name}/.bashrc 0640 ${mkUsername name} ${mkUsername name} - /etc/laravel-${name}-bashrc"
   ];
