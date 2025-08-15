@@ -40,7 +40,10 @@ in {
   networking.firewall.allowedTCPPorts = [ 80 ] ++ lib.optionals ssl [ 443 ];
 
   # Create welcome message for user
+  # todo: the created /etc file should ideally be 0750
   environment.etc."laravel-${name}-bashrc".text = ''
+    export PATH="$HOME/.config/composer/vendor/bin/:$PATH"
+
     # Laravel site welcome message
     echo "Welcome to ${name} Laravel site!"
     echo "Domains: ${lib.concatStringsSep ", " domains}"

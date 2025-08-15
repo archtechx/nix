@@ -171,6 +171,24 @@ The module doesn't handle www redirects automatically. This may be added in the 
 
 At this time, I'd recommend handling basic redirects like that on Cloudflare.
 
+### Default nginx server
+
+Out of the box, if nginx cannot match an incoming request's host to a specific virtual host it will
+just use _some_ vhost. You can prevent behavior that by adding a module like this:
+
+```nix
+{
+  services.nginx.virtualHosts."catchall" = {
+    default = true;
+    locations."/".return = "444";
+    rejectSSL = true;
+  };
+}
+```
+
+This creates a `default_server` vhost that returns an empty response to any request. The name of the
+vhost is irrelevant.
+
 ### Authenticated Origin Pulls (AOP)
 
 To make your sites reachable ONLY using Cloudflare, you can use [authenticated origin
