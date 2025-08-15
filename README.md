@@ -2,6 +2,9 @@
 
 A collection of scripts and configuration files for our use of Nix tooling.
 
+> [!NOTE]
+> You may want to read [**this article**](https://stancl.substack.com/p/deploying-laravel-on-nixos) for more detailed information.
+
 ## Setting up a new server
 
 This is just for getting a working NixOS installation with `/etc/nixos/configuration.nix` deployed onto a generic cloud VM.
