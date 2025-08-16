@@ -250,9 +250,7 @@ function client_ip(): string
         return $ipv6;
     }
 
-    return request()->hasHeader('CF-Connecting-IP')
-        ? request()->header('CF-Connecting-IP')
-        : request()->ip();
+    return request()->header('CF-Connecting-IP') ?: request()->ip();
 }
 ```
 
@@ -306,7 +304,7 @@ curl -s https://www.cloudflare.com/ips-v6 | sha256 | xargs nix hash convert --ha
 It's a good idea to have `/etc/nixos` tracked in version control so you can easily revert the config
 including the lockfile, not just system state.
 
-The only thing in your lockfile should be `nixpkgs` unless you add more things to your system config.
+The only thing in your lockfile should be `nixpkgs` unless you add more inputs to your system config.
 
 After rebuilding the system several times, you will have some past generations and unused files in the Nix
 store that can be cleaned up.
