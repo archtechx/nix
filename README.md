@@ -380,3 +380,11 @@ Then clean garbage:
 ```sh
 sudo nix-collect-garbage -d
 ```
+
+## Rebuilding
+
+From personal testing, running `nixos-rebuild switch` doesn't necessarily cause any downtime for users
+if your website is behind Cloudflare. NixOS first builds everything it needs and only then, usually pretty
+quickly, restarts (and adds, removes, etc) services as needed. This means your nginx **might** be down for
+a very brief period, but if Cloudflare cannot connect to your server it will retry a couple of times. So at
+most some requests will be very slightly delayed, but users should not see any errors on most rebuilds.
