@@ -107,14 +107,15 @@ The default php-fpm opcache configuration is to cache everything *forever* witho
 revalidation. Therefore, make sure to include `sudo systemctl reload phpfpm-${name}` in
 your deployment script.
 
-To deploy your app, you can use ssh deployments, rather than webhooks triggering pull hooks
-or other techniques. Since this module creates a new user for each site, this deployment
-technique becomes non-problematic and it's one of the simplest things you can do. Just
-ssh-keygen a private key, make a GitHub Actions job use that on push, and include the
-public key in the site's `sshKeys` array. Then, to be able to `git pull` the site on the
-server, add the user's `~/.ssh/id_ed25519.pub` to the repository's deployment keys. The
-ssh key for the user is generated automatically (can be disabled by setting `generateSshKey`
-to false).
+To deploy your app, you can use
+[ssh deployments](https://stancl.substack.com/i/170830424/setting-up-deployments),
+rather than webhooks triggering pull hooks or other techniques. Since this module
+creates a new user for each site, this deployment technique becomes non-problematic
+and it's one of the simplest things you can do. Just ssh-keygen a private key, make a
+GitHub Actions job use that on push, and include the public key in the site's `sshKeys` array.
+Then, to be able to `git pull` the site on the server, add the user's `~/.ssh/id_ed25519.pub`
+to the repository's deployment keys. The ssh key for the user is generated automatically
+(can be disabled by setting `generateSshKey` to false).
 
 Also, if you're using `ssl` you should put this line into your system config:
 ```nix
