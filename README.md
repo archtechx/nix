@@ -170,9 +170,20 @@ Simply `scp laravel.nix root@<your server ip>:/etc/nixos/` and start writing con
 
 ### www redirects
 
-The module doesn't handle www redirects automatically. This may be added in the future.
+To redirect `www.acme.com` to `acme.com`, you can use the `wwwRedirect` attribute. It should be
+null for no redirect, or an integer status code for an enabled redirect.
 
-At this time, I'd recommend handling basic redirects like that on Cloudflare.
+```nix
+(laravelSite {
+  name = "foo";
+  domains = [ "foo.com" ]
+  wwwRedirect = 301; # permanent redirect
+  # ...
+})
+```
+
+With the config above, `www.foo.com/bar` will return a redirect to `foo.com/bar`, with the schema
+matching the site's `ssl` config.
 
 ### Default nginx server
 
@@ -297,6 +308,38 @@ To check the up-to-date hashes, you can use:
 ```sh
 curl -s https://www.cloudflare.com/ips-v4 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
 curl -s https://www.cloudflare.com/ips-v6 | sha256 | xargs nix hash convert --hash-algo sha256 --to nix32
+```
+
+## Static sites
+
+For hosting static sites, you can use `static.nix` very similarly to `laravel.nix`. Notable differences:
+1. `root` is required, e.g. `name="foo"; root="build";` means `/srv/foo/build` will be served. In other
+   words, even though this is for static sites, we do not serve the entire `/srv/{name}` dir to allow
+   for version control and build steps.
+2. By default, the `static-generic` user is used. Static sites do not always need strict user separation
+   since there's no request runtime. That said, the user is *very* limited and only has `pkgs.git` and
+   `pkgs.unzip`. Therefore it's only suited for static sites that are at most pulled from somewhere,
+   rather than built using Node.js. Also note that GitHub generally doesn't allow using a single SSH key
+   as the deploy key on multiple repos. For these reasons, it's still recommended to enable user creation
+   via `user = true;`.
+
+Full usage:
+```nix
+(staticSite {
+  name = "foo"; # name of the site
+  root = "build"; # directory within /srv/foo to be served by nginx
+
+  user = true; # if false, static-generic is used. Default: false
+  domains = [ "foo.com" "bar.com" ]; # domains to serve the site on
+  ssl = true; # enableACME + forceSSL. Default: false
+  # Status code for www-to-non-www redirects. No redirect if null. Applies to all sites
+  wwwRedirect = 301; # Default: null
+  cloudflareOnly = true; # use Authenticated Origin Pulls. See the dedicated section. Default: false
+  extraPackages = [ pkgs.nodejs_24 ]; # only applies if user=true
+  generateSshKey = true; # defaults to true, used even with user=false
+  sshKeys = [ "array" "of" "public" "ssh" "keys" ]; # optional
+  extraNginxConfig = "nginx configuration string"; # optional
+})
 ```
 
 ## Maintenance

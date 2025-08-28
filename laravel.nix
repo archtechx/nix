@@ -3,6 +3,7 @@
   phpPackage, # e.g. pkgs.php84
   domains ? [], # e.g. [ "example.com" "acme.com" ]
   ssl ? false, # Should SSL be used
+  wwwRedirect ? null, # The status code used for www-to-non-www redirects. Null means no redirect
   cloudflareOnly ? false, # Should CF Authenticated Origin Pulls be used
   extraNginxConfig ? null, # Extra nginx config string
   sshKeys ? null, # SSH public keys used to log into the site's user for deployments
@@ -31,7 +32,7 @@
 
 { config, lib, pkgs, ... }:
 let
-  mkUsername = siteName: "laravel-${siteName}";
+  username = "laravel-${name}";
 in {
   services.nginx.enable = true;
   security.acme.acceptTerms = lib.mkIf ssl true;
@@ -41,13 +42,14 @@ in {
 
   # Create welcome message for user
   # todo: the created /etc file should ideally be 0750
+  # Note: keep in sync with static.nix
   environment.etc."laravel-${name}-bashrc".text = ''
     export PATH="$HOME/.config/composer/vendor/bin/:$PATH"
 
     # Laravel site welcome message
     echo "Welcome to ${name} Laravel site!"
     echo "Domains: ${lib.concatStringsSep ", " domains}"
-    echo "User home: /home/${mkUsername name}"
+    echo "User home: /home/${username}"
     echo "Site: /srv/${name}"
     echo "Restart php-fpm: sudo systemctl reload phpfpm-${name}"
     ${lib.optionalString queue ''echo "Restart queue: php artisan queue:restart"''}
@@ -60,12 +62,12 @@ in {
   systemd.tmpfiles.rules = [
     "d /srv 0751 root root - -"
     "d /home 0751 root root - -"
-    "d /srv/${name} 0750 ${mkUsername name} ${mkUsername name} - -"
-    "C /home/${mkUsername name}/.bashrc 0640 ${mkUsername name} ${mkUsername name} - /etc/laravel-${name}-bashrc"
+    "d /srv/${name} 0750 ${username} ${username} - -"
+    "C /home/${username}/.bashrc 0640 ${username} ${username} - /etc/laravel-${name}-bashrc"
   ];
 
   services.cron.systemCronJobs = [
-    "* * * * * ${mkUsername name} cd /srv/${name} && ${phpPackage}/bin/php artisan schedule:run > /dev/null 2>&1"
+    "* * * * * ${username} cd /srv/${name} && ${phpPackage}/bin/php artisan schedule:run > /dev/null 2>&1"
   ];
 
   # Laravel queue worker service
@@ -75,8 +77,8 @@ in {
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "simple";
-      User = mkUsername name;
-      Group = mkUsername name;
+      User = username;
+      Group = username;
       WorkingDirectory = "/srv/${name}";
       ExecStart = "${phpPackage}/bin/php artisan queue:work ${queueArgs}";
       Restart = "always";
@@ -88,8 +90,9 @@ in {
   };
 
   # SSH key generation for git deployments
+  # Note: keep in sync with static.nix
   systemd.services."generate-ssh-key-${name}" = lib.mkIf generateSshKey {
-    description = "Generate SSH key for ${mkUsername name}";
+    description = "Generate SSH key for ${username}";
     wantedBy = [ "multi-user.target" ];
     after = [ "users.target" ];
     serviceConfig = {
@@ -98,15 +101,15 @@ in {
       User = "root";
     };
     script = ''
-      USER_HOME="/home/${mkUsername name}"
+      USER_HOME="/home/${username}"
       SSH_DIR="$USER_HOME/.ssh"
       KEY_FILE="$SSH_DIR/id_ed25519"
 
       if [[ ! -f "$KEY_FILE" ]]; then
-        echo "Generating SSH key for ${mkUsername name}"
+        echo "Generating SSH key for ${username}"
         mkdir -p "$SSH_DIR"
-        ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f "$KEY_FILE" -N "" -C "${mkUsername name}"
-        chown -R ${mkUsername name}:${mkUsername name} "$SSH_DIR"
+        ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f "$KEY_FILE" -N "" -C "${username}"
+        chown -R ${username}:${username} "$SSH_DIR"
         chmod 700 "$SSH_DIR"
         chmod 600 "$KEY_FILE"
         chmod 640 "$KEY_FILE.pub"
@@ -114,7 +117,7 @@ in {
         echo "Public key for deploy key:"
         cat "$KEY_FILE.pub"
       else
-        echo "SSH key already exists for ${mkUsername name}"
+        echo "SSH key already exists for ${username}"
       fi
     '';
   };
@@ -169,11 +172,18 @@ in {
         deny all;
       '';
     };
-  });
+  }) // lib.optionalAttrs (wwwRedirect != null) (lib.genAttrs (map (domain: "www.${domain}") domains) (wwwDomain: {
+    enableACME = ssl;
+    forceSSL = ssl;
+
+    locations."/" = {
+      return = "${toString wwwRedirect} ${if ssl then "https" else "http"}://${lib.removePrefix "www." wwwDomain}$request_uri";
+    };
+  }));
 
   # PHP-FPM pool configuration
   services.phpfpm.pools.${name} = {
-    user = mkUsername name;
+    user = username;
     phpPackage = phpPackage;
     settings = poolSettings // extraPoolSettings // {
       "listen.owner" = config.services.nginx.user;
@@ -181,11 +191,11 @@ in {
   };
 
   # User and group settings
-  users.users.${mkUsername name} = {
-    group = mkUsername name;
+  users.users.${username} = {
+    group = username;
     isSystemUser = true;
     createHome = true;
-    home = "/home/${mkUsername name}";
+    home = "/home/${username}";
     homeMode = "750";
     shell = pkgs.bashInteractive;
     packages = [ phpPackage pkgs.git pkgs.unzip phpPackage.packages.composer ] ++ extraPackages;
@@ -193,14 +203,14 @@ in {
     openssh.authorizedKeys.keys = sshKeys;
   };
 
-  users.groups.${mkUsername name} = {};
+  users.groups.${username} = {};
 
   # Add site group to nginx service
-  systemd.services.nginx.serviceConfig.SupplementaryGroups = [ (mkUsername name) ];
+  systemd.services.nginx.serviceConfig.SupplementaryGroups = [ username ];
 
   # Sudo rules for service management
   security.sudo.extraRules = [{
-    users = [ (mkUsername name) ];
+    users = [ username ];
     commands = [
       {
         command = "/run/current-system/sw/bin/systemctl reload phpfpm-${name}";
