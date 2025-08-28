@@ -269,6 +269,13 @@ However a more proper solution is to use the `real_ip` module in common nginx co
 we can follow the [guide from the NixOS
 wiki](https://nixos.wiki/wiki/Nginx#Using_realIP_when_behind_CloudFlare_or_other_CDN).
 
+> [!NOTE]
+> You can also use the `realip.nix` module here (which wraps the code below):
+>
+> `scp realip.nix root@<server ip>:/etc/nixos/`
+>
+> Then just add `./realip.nix` to your modules array.
+
 ```nix
 # New module in your modules array
 {
