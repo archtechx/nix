@@ -1,5 +1,5 @@
 {
-  name, # Name of the site, /srv/{name} will be based on this as well as the username if user = true
+  name, # Name of the site, /srv/{name} will be based on this as well as the username if user=true
   root, # The directory within /srv/{name} that should be served by nginx
   user ? false, # Should a user be created. If false, static-generic is used
   domains ? [], # e.g. [ "example.com" "acme.com" ]
@@ -84,6 +84,8 @@ in {
 
   # SSH key generation for git deployments
   # Note: keep in sync with laravel.nix
+  # Unlike laravel.nix, the key here includes username, not the site name since static-generic
+  # can be used for multiple sites
   systemd.services."generate-ssh-key-${username}" = lib.mkIf generateSshKey {
     description = "Generate SSH key for ${username}";
     wantedBy = [ "multi-user.target" ];
