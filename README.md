@@ -177,7 +177,7 @@ null for no redirect, or an integer status code for an enabled redirect.
 ```nix
 (laravelSite {
   name = "foo";
-  domains = [ "foo.com" ]
+  domains = [ "foo.com" ];
   wwwRedirect = 301; # permanent redirect
   # ...
 })
