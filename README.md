@@ -190,6 +190,13 @@ matching the site's `ssl` config.
 Out of the box, if nginx cannot match an incoming request's host to a specific virtual host it will
 just use _some_ vhost. You can prevent behavior that by adding a module like this:
 
+> [!NOTE]
+> You can also use the `catchall.nix` module here (which includes the code below):
+>
+> `scp catchall.nix root@<server ip>:/etc/nixos/`
+>
+> Then just add `./catchall.nix` to your modules array.
+
 ```nix
 {
   services.nginx.virtualHosts."catchall" = {
