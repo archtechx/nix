@@ -13,6 +13,7 @@
     efiSupport = true;
     device = "nodev";
     efiInstallAsRemovable = true;
+    configurationLimit = 10;
   };
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
